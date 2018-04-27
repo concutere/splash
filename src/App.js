@@ -69,16 +69,22 @@ class App extends Component {
                 if(n.mode==='point') { 
                   return <circle id={`el${i}`} cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent" className={cls}/>
                 }
-                else if(n.mode==='line' || (n.mode==='line-part' && !isNaN(n.x2) &&!isNaN(n.y2))) {
+                else if(n.mode==='line' 
+                  || (n.mode==='line-part' && !isNaN(n.x2) &&!isNaN(n.y2))) {
                   if(n.mode==='line-part') {
                     cls='selected';
                   }
                   return <line id={`el${i}`} x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2"  className={cls} />
                 }
                 else if(n.mode==='chain') {
-                  return <polyline id={`el${i}`} className={cls} points={n.points.map((v,i,a) => {
+                  let pts = n.points.map((v,i,a) => {
                     return `${v.x},${v.y}`;
-                  }).join(' ')} />
+                  });
+                  if(n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)) {
+                    pts.push({'x':n.sweep.x,'y':n.sweep.y});
+                  }
+
+                  return <polyline id={`el${i}`} className={cls} points={pts.join(' ')} />
                 }
               })};
             </svg>
@@ -125,15 +131,21 @@ class App extends Component {
   handleMove(e) {
     const offX = 175;
     const offY = 75;
+    const x = e.clientX - offX;
+    const y = e.clientY - offY;
     let nodes = this.state.nodes.slice() || [];
     let node = nodes.pop();
     if(node && node.mode === 'line-part') {
-      node.x2 = e.clientX - offX;
-      node.y2 = e.clientY - offY;
+      node.x2 = x;
+      node.y2 = y;
       nodes.push(node);
       this.setState({'nodes':nodes});
     }
-    //this.setState({})
+    else if (node && node.mode==='chain' && node.points.length > 1) {
+      node.sweep={'x':x,'y':y};
+      nodes.push(node);
+      this.setState({'nodes':nodes});
+    }
   }
 
   startClick(e) {
