@@ -21,9 +21,9 @@ class App extends Component {
     var details=[];
     if(this.state.mode==='grab' && this.state.detailsIndex >=0 && this.state.detailsIndex < this.state.nodes.length) {
       const node = this.state.nodes[this.state.detailsIndex];
+      details.push(<div><div className="detail-label">id</div><div className="detail">{this.state.detailsIndex}</div></div>);
       for (var n in node) {
-        console.log(n);
-        details.push(<div><div className="detail-label">{`${n}`}</div><div className="detail">{node[n]}</div></div>);
+        details.push(<div><div className="detail-label">{n}</div><div className="detail">{node[n]}</div></div>);
       }
     }
 
@@ -45,11 +45,12 @@ class App extends Component {
           <div className="output-cnt">
             <svg xmlns="http://www.w3.org/2000/svg" id="surface" width="100%" height="100%" preserveAspectRatio="none" onMouseDown={this.startClick} onMouseUp={this.endClick}>
               {this.state.nodes.map((n,i,a) => {
+                var cls = (this.state.detailsIndex===i) ? 'selected' : '';
                 if(n.mode==='point') { 
-                  return <circle id={`el${i}`} cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent"/>
+                  return <circle id={`el${i}`} cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent" className={cls}/>
                 }
                 else if(n.mode==='line') {
-                  return <line id={`el${i}`} x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2" />
+                  return <line id={`el${i}`} x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2"  className={cls} />
                 }
               })};
             </svg>
@@ -82,7 +83,7 @@ class App extends Component {
 
   startClick(e) {
     const mode = this.state.mode;
-    const offX = 125;
+    const offX = 175;
     const offY = 75;
     const x = e.clientX - offX;
     const y= e.clientY  - offY;
@@ -99,19 +100,19 @@ class App extends Component {
     else if(mode==='grab') {
       let id = e.target.id;
       let numpart = id.substr(2);
-      if (id.substr(0,2) === 'el') {
-        if(isNaN(numpart)) {
-          numpart = -1;
-        }
-        this.setState({'detailsIndex':numpart});
-        console.log(numpart);
+      if (id.substr(0,2) !== 'el' || isNaN(numpart)) {
+        numpart = -1;
       }
+      else {
+        numpart = parseInt(numpart);
+      }
+      this.setState({'detailsIndex':numpart});
     }
   }
 
   endClick(e) {
     const mode = this.state.mode;
-    const offX = 125;
+    const offX = 175;
     const offY = 75;
     const x = e.clientX - offX;
     const y = e.clientY - offY;

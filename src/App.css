@@ -1,7 +1,7 @@
 .toolgrid {
   display:grid;
   grid-template-rows:50px auto;
-  grid-template-columns: 100px auto 100px;
+  grid-template-columns: 150px auto 150px;
   width:100%;
   height:100%;
   padding:0;
@@ -73,3 +73,26 @@
   font-size:.8em;
   font-weight:normal;
 }
+
+
+
+/********************/
+
+line:hover, 
+circle:hover,
+polyline:hover,
+polygon:hover,
+ellipse:hover,
+rect:hover,
+path:hover,
+line.selected, 
+circle.selected,
+polyline.selected,
+polygon.selected,
+ellipse.selected,
+rect.selected,
+path.selected {
+  stroke:orangered;
+  opacity:.5;
+}
+
