@@ -5,9 +5,10 @@ class App extends Component {
   constructor(props) {
     super(props);
 
-    this.state = {'mode':'drag','nodes':[]};
+    this.state = {'mode':'grab','nodes':[]};
 
     this.setMode = this.setMode.bind(this);
+    this.setModeToGrab = this.setModeToGrab.bind(this);
     this.setModeToPoint = this.setModeToPoint.bind(this);
     this.setModeToLine = this.setModeToLine.bind(this);
     this.startClick = this.startClick.bind(this);
@@ -17,6 +18,14 @@ class App extends Component {
   }
  
   render() {
+    var details=[];
+    if(this.state.mode==='grab' && this.state.detailsIndex >=0 && this.state.detailsIndex < this.state.nodes.length) {
+      const node = this.state.nodes[this.state.detailsIndex];
+      for (var n in node) {
+        console.log(n);
+        details.push(<div><div className="detail-label">{`${n}`}</div><div className="detail">{node[n]}</div></div>);
+      }
+    }
 
     return (
       <div className="toolgrid">
@@ -25,8 +34,9 @@ class App extends Component {
           <div id="save" >
             <a id="savelink" download="output.svg" onMouseDown={this.outputSvg} href={this.SvgToUrl()}>SAVE</a>
           </div>
-          <div id="point" onClick={this.setModeToPoint} className={(this.mode === 'point') ? '.selected' : ''}>POINT</div>
-          <div id="line" onClick={this.setModeToLine}>LINE</div>
+          <div id="grab" onClick={this.setModeToGrab} className={(this.state.mode === 'grab') ? 'selected' : ''}>GRAB</div>
+          <div id="point" onClick={this.setModeToPoint} className={(this.state.mode === 'point') ? 'selected' : ''}>POINT</div>
+          <div id="line" onClick={this.setModeToLine} className={(this.state.mode === 'line') ? 'selected' : ''}>LINE</div>
         </div>
         <div id="proptop"></div>
         <div id="toolbox">
@@ -36,15 +46,20 @@ class App extends Component {
             <svg xmlns="http://www.w3.org/2000/svg" id="surface" width="100%" height="100%" preserveAspectRatio="none" onMouseDown={this.startClick} onMouseUp={this.endClick}>
               {this.state.nodes.map((n,i,a) => {
                 if(n.mode==='point') { 
-                  return <circle cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent"/>
+                  return <circle id={`el${i}`} cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent"/>
                 }
                 else if(n.mode==='line') {
-                  return <line x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2" />
+                  return <line id={`el${i}`} x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2" />
                 }
               })};
             </svg>
           </div>
         </div>
+        <div id="properties">
+          <div>DETAILS</div>
+          <div className="details">{details}</div>
+        </div>
+        
       </div>
     );
   }
@@ -55,6 +70,10 @@ class App extends Component {
 
   setModeToPoint() {
     this.setMode('point');
+  }
+
+  setModeToGrab() {
+    this.setMode('grab');
   }
 
   setModeToLine() {
@@ -71,12 +90,22 @@ class App extends Component {
       let nodes = this.state.nodes.slice() || [];
       nodes.push({'mode':'point','x':x,'y':y});
       this.setState({'nodes':nodes});
-      console.log('pointing');
     }
     else if(mode==='line') {
       let nodes = this.state.nodes.slice() || [];
       nodes.push({'mode':'line-part','x1':x,'y1':y});
       this.setState({'nodes':nodes});
+    }
+    else if(mode==='grab') {
+      let id = e.target.id;
+      let numpart = id.substr(2);
+      if (id.substr(0,2) === 'el') {
+        if(isNaN(numpart)) {
+          numpart = -1;
+        }
+        this.setState({'detailsIndex':numpart});
+        console.log(numpart);
+      }
     }
   }
 

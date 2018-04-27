@@ -41,37 +41,35 @@
   text-align:center;
   margin:5px;
   padding:5px;
-  background-color:rgb(222,222,222);
+  background-color:slategray;
 }
 
-.selected {
-  opacity:50%;
+#modebox > div.selected {
+  background-color:lightgray;
 }
 
 #properties {
-
+  color:white;
+  font-weight:bold;
+  padding:10px;
 }
 
-#loadfile {
-  max-width:50px;
-  white-space:nowrap;
-  text-align:center;
+.details > div {
+  display:grid;
+  grid-template-rows: min-content;
+  grid-template-columns: 50% 50%;
 }
-#loadfile::before {
-  font-size:1.2em;
-  text-align:center;
-  content:'LOAD';
-  margin-right:50px;
 
-}#savefile {
-  max-width:50px;
-  white-space:nowrap;
-  text-align:center;
+.detail-label {
+  text-align:left;
+  padding:5px;
+  font-size:.8em;
+  font-weight:normal;
 }
-#savefile::before {
-  font-size:1.2em;
-  text-align:center;
-  content:'SAVE';
-  margin-right:50px;
 
+.detail {
+  text-align:right;
+  padding:5px;
+  font-size:.8em;
+  font-weight:normal;
 }
