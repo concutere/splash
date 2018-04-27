@@ -74,7 +74,11 @@
   font-weight:normal;
 }
 
-
+polyline {
+  fill:none;
+  stroke:black;
+  stroke-width:1px;
+}
 
 /********************/
 
@@ -95,4 +99,5 @@ path.selected {
   stroke:orangered;
   opacity:.5;
 }
+
 

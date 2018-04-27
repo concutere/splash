@@ -5,25 +5,41 @@ class App extends Component {
   constructor(props) {
     super(props);
 
-    this.state = {'mode':'grab','nodes':[]};
+    this.state = {'mode':'edit','nodes':[]};
 
     this.setMode = this.setMode.bind(this);
-    this.setModeToGrab = this.setModeToGrab.bind(this);
+    this.setModeToEdit = this.setModeToEdit.bind(this);
     this.setModeToPoint = this.setModeToPoint.bind(this);
     this.setModeToLine = this.setModeToLine.bind(this);
+    this.setModeToChain = this.setModeToChain.bind(this);
+
     this.startClick = this.startClick.bind(this);
     this.endClick = this.endClick.bind(this);
 
     this.outputSvg = this.outputSvg.bind(this);
+
+    this.undoOne = this.undoOne.bind(this);
+    this.undoAll = this.undoAll.bind(this);
   }
  
   render() {
     var details=[];
-    if(this.state.mode==='grab' && this.state.detailsIndex >=0 && this.state.detailsIndex < this.state.nodes.length) {
+    if(this.state.mode==='edit' && this.state.detailsIndex >=0 && this.state.detailsIndex < this.state.nodes.length) {
       const node = this.state.nodes[this.state.detailsIndex];
       details.push(<div><div className="detail-label">id</div><div className="detail">{this.state.detailsIndex}</div></div>);
       for (var n in node) {
-        details.push(<div><div className="detail-label">{n}</div><div className="detail">{node[n]}</div></div>);
+        if(node.mode === 'chain' && n === 'points') {
+          let points = node[n];
+          points.forEach((v,i,a) => {
+            details.push(
+              <div><div className="detail-label">{(i === 0 ? n : '')}</div><div className="detail">{`${v.x},${v.y}`}</div></div>
+            );  
+          });
+          console.log(details);
+        }
+        else {
+          details.push(<div><div className="detail-label">{n}</div><div className="detail">{node[n]}</div></div>);
+        }
       }
     }
 
@@ -34,9 +50,12 @@ class App extends Component {
           <div id="save" >
             <a id="savelink" download="output.svg" onMouseDown={this.outputSvg} href={this.SvgToUrl()}>SAVE</a>
           </div>
-          <div id="grab" onClick={this.setModeToGrab} className={(this.state.mode === 'grab') ? 'selected' : ''}>GRAB</div>
+          <div id="clear" onClick={this.undoAll}>CLEAR</div>
+          <div id="undo" onClick={this.undoOne}>UNDO</div>
+          <div id="edit" onClick={this.setModeToEdit} className={(this.state.mode === 'edit') ? 'selected' : ''}>EDIT</div>
           <div id="point" onClick={this.setModeToPoint} className={(this.state.mode === 'point') ? 'selected' : ''}>POINT</div>
           <div id="line" onClick={this.setModeToLine} className={(this.state.mode === 'line') ? 'selected' : ''}>LINE</div>
+          <div id="chain" onClick={this.setModeToChain} className={(this.state.mode === 'chain') ? 'selected' : ''}>CHAIN</div>
         </div>
         <div id="proptop"></div>
         <div id="toolbox">
@@ -52,6 +71,11 @@ class App extends Component {
                 else if(n.mode==='line') {
                   return <line id={`el${i}`} x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2"  className={cls} />
                 }
+                else if(n.mode==='chain') {
+                  return <polyline id={`el${i}`} className={cls} points={n.points.map((v,i,a) => {
+                    return `${v.x},${v.y}`;
+                  }).join(' ')} />
+                }
               })};
             </svg>
           </div>
@@ -66,19 +90,32 @@ class App extends Component {
   }
 
   setMode(mode) {
-    this.setState({'mode':mode});
+    let state = {'mode':mode};
+    if (this.state.mode==='chain') {
+      let nodes = this.state.nodes.slice() || [];
+      nodes.push({'mode':'unchained'});
+      state['nodes']=nodes;
+    }
+    else if(this.state.mode==='edit' && mode !=='edit') {
+      state['detailsIndex']=-1;
+    }
+    this.setState(state);
   }
 
   setModeToPoint() {
     this.setMode('point');
   }
 
-  setModeToGrab() {
-    this.setMode('grab');
+  setModeToEdit() {
+    this.setMode('edit');
   }
 
   setModeToLine() {
     this.setMode('line');
+  }
+
+  setModeToChain() {
+    this.setMode('chain');
   }
 
   startClick(e) {
@@ -97,7 +134,20 @@ class App extends Component {
       nodes.push({'mode':'line-part','x1':x,'y1':y});
       this.setState({'nodes':nodes});
     }
-    else if(mode==='grab') {
+    else if(mode==='chain') {
+      let nodes = this.state.nodes.slice() || [];
+      var node;
+      if(nodes.length > 0 && nodes[nodes.length-1].mode==='chain') {
+        node = nodes.pop();
+        node.points.push({'x':x, 'y':y});
+      }
+      else {
+        node = {'mode':'chain','points':[{'x':x, 'y':y}]};
+      }
+      nodes.push(node);
+      this.setState({'nodes':nodes});
+    }
+    else if(mode==='edit') {
       let id = e.target.id;
       let numpart = id.substr(2);
       if (id.substr(0,2) !== 'el' || isNaN(numpart)) {
@@ -127,6 +177,17 @@ class App extends Component {
         this.setState({'nodes':nodes});
       }
     }
+    /*else if(mode==='chain') {
+      let nodes = this.state.nodes.slice();
+      if (nodes.length > 0) {
+        let node = nodes.pop();
+        if(node.mode==='chain') {
+          node.points.push({'x':x,'y':y});
+          nodes.push(node);
+          this.setState({'nodes':nodes});
+        }
+      }
+    }*/
   }
 
   outputSvg() {
@@ -144,6 +205,19 @@ class App extends Component {
       var svgBlob = new Blob([svgData], {type:"image/svg+xml;charset=utf-8"});
       return URL.createObjectURL(svgBlob);
     }
+  }
+
+  //TODO refactor to use a commands/changes list rather than output list? when refactoring properties?
+  undoOne() {
+    let nodes = this.state.nodes.slice() || [];
+    if(nodes.length > 0) {
+      let removed = nodes.pop();
+      this.setState({'nodes':nodes});
+    }
+  }
+
+  undoAll() {
+    this.setState({'nodes':[]});
   }
 }
 
