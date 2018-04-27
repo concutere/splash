@@ -15,6 +15,7 @@ class App extends Component {
 
     this.startClick = this.startClick.bind(this);
     this.endClick = this.endClick.bind(this);
+    this.handleMove = this.handleMove.bind(this);
 
     this.outputSvg = this.outputSvg.bind(this);
 
@@ -62,13 +63,16 @@ class App extends Component {
         </div>
         <div id="output-outer">
           <div className="output-cnt">
-            <svg xmlns="http://www.w3.org/2000/svg" id="surface" width="100%" height="100%" preserveAspectRatio="none" onMouseDown={this.startClick} onMouseUp={this.endClick}>
+            <svg xmlns="http://www.w3.org/2000/svg" id="surface" width="100%" height="100%" preserveAspectRatio="none" onMouseDown={this.startClick} onMouseUp={this.endClick} onMouseMove={this.handleMove}>
               {this.state.nodes.map((n,i,a) => {
                 var cls = (this.state.detailsIndex===i) ? 'selected' : '';
                 if(n.mode==='point') { 
                   return <circle id={`el${i}`} cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent" className={cls}/>
                 }
-                else if(n.mode==='line') {
+                else if(n.mode==='line' || (n.mode==='line-part' && !isNaN(n.x2) &&!isNaN(n.y2))) {
+                  if(n.mode==='line-part') {
+                    cls='selected';
+                  }
                   return <line id={`el${i}`} x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2"  className={cls} />
                 }
                 else if(n.mode==='chain') {
@@ -118,6 +122,20 @@ class App extends Component {
     this.setMode('chain');
   }
 
+  handleMove(e) {
+    const offX = 175;
+    const offY = 75;
+    let nodes = this.state.nodes.slice() || [];
+    let node = nodes.pop();
+    if(node && node.mode === 'line-part') {
+      node.x2 = e.clientX - offX;
+      node.y2 = e.clientY - offY;
+      nodes.push(node);
+      this.setState({'nodes':nodes});
+    }
+    //this.setState({})
+  }
+
   startClick(e) {
     const mode = this.state.mode;
     const offX = 175;
@@ -133,6 +151,8 @@ class App extends Component {
       let nodes = this.state.nodes.slice() || [];
       nodes.push({'mode':'line-part','x1':x,'y1':y});
       this.setState({'nodes':nodes});
+
+
     }
     else if(mode==='chain') {
       let nodes = this.state.nodes.slice() || [];
