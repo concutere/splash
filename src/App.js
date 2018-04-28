@@ -81,7 +81,7 @@ class App extends Component {
                     return `${v.x},${v.y}`;
                   });
                   if(n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)) {
-                    pts.push({'x':n.sweep.x,'y':n.sweep.y});
+                    pts.push(`${n.sweep.x},${n.sweep.y}`);
                   }
 
                   return <polyline id={`el${i}`} className={cls} points={pts.join(' ')} />
@@ -141,8 +141,9 @@ class App extends Component {
       nodes.push(node);
       this.setState({'nodes':nodes});
     }
-    else if (node && node.mode==='chain' && node.points.length > 1) {
+    else if (node && node.mode==='chain' && node.points.length > 0) {
       node.sweep={'x':x,'y':y};
+      console.log(`setting sweep: ${node.sweep.x},${node.sweep.y}`);
       nodes.push(node);
       this.setState({'nodes':nodes});
     }
