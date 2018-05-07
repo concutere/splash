@@ -12,6 +12,7 @@ class App extends Component {
     this.setModeToPoint = this.setModeToPoint.bind(this);
     this.setModeToLine = this.setModeToLine.bind(this);
     this.setModeToChain = this.setModeToChain.bind(this);
+    this.setModeToSpline = this.setModeToSpline.bind(this);
 
     this.startClick = this.startClick.bind(this);
     this.endClick = this.endClick.bind(this);
@@ -36,7 +37,6 @@ class App extends Component {
               <div><div className="detail-label">{(i === 0 ? n : '')}</div><div className="detail">{`${v.x},${v.y}`}</div></div>
             );  
           });
-          console.log(details);
         }
         else {
           details.push(<div><div className="detail-label">{n}</div><div className="detail">{node[n]}</div></div>);
@@ -57,6 +57,7 @@ class App extends Component {
           <div id="point" onClick={this.setModeToPoint} className={(this.state.mode === 'point') ? 'selected' : ''}>POINT</div>
           <div id="line" onClick={this.setModeToLine} className={(this.state.mode === 'line') ? 'selected' : ''}>LINE</div>
           <div id="chain" onClick={this.setModeToChain} className={(this.state.mode === 'chain') ? 'selected' : ''}>CHAIN</div>
+          <div id="spline" onClick={this.setModeToSpline} className={(this.state.mode === 'spline') ? 'selected' : ''}>SPLINE</div>
         </div>
         <div id="proptop"></div>
         <div id="toolbox">
@@ -66,25 +67,40 @@ class App extends Component {
             <svg xmlns="http://www.w3.org/2000/svg" id="surface" width="100%" height="100%" preserveAspectRatio="none" onMouseDown={this.startClick} onMouseUp={this.endClick} onMouseMove={this.handleMove}>
               {this.state.nodes.map((n,i,a) => {
                 var cls = (this.state.detailsIndex===i) ? 'selected' : '';
-                if(n.mode==='point') { 
-                  return <circle id={`el${i}`} cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent" className={cls}/>
-                }
-                else if(n.mode==='line' 
-                  || (n.mode==='line-part' && !isNaN(n.x2) &&!isNaN(n.y2))) {
-                  if(n.mode==='line-part') {
-                    cls='selected';
+                if(n){
+                  if(n.mode==='point') { 
+                    return <circle id={`el${i}`} cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent" className={cls}/>
                   }
-                  return <line id={`el${i}`} x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2"  className={cls} />
-                }
-                else if(n.mode==='chain') {
-                  let pts = n.points.map((v,i,a) => {
-                    return `${v.x},${v.y}`;
-                  });
-                  if(n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)) {
-                    pts.push(`${n.sweep.x},${n.sweep.y}`);
+                  else if(n.mode==='line' 
+                    || (n.mode==='line-part' && !isNaN(n.x2) &&!isNaN(n.y2))) {
+                    if(n.mode==='line-part') {
+                      cls='selected';
+                    }
+                    return <line id={`el${i}`} x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2"  className={cls} />
                   }
-
-                  return <polyline id={`el${i}`} className={cls} points={pts.join(' ')} />
+                  else if(n.mode==='chain' || n.mode==='spline') {
+                    var pts=n.points.slice() || [];
+                    if(n.mode==='chain') {
+                      pts = pts.map((v,i,a) => {
+                        return `${v.x},${v.y}`;
+                      });
+                      if(n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)) {
+                        pts.push(`${n.sweep.x},${n.sweep.y}`);
+                        cls='selected';
+                      }
+                      pts = pts.join(' ');
+                    }
+                    else if(n.mode==='spline') {
+                      if(n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)) {
+                        pts.push({'x':n.sweep.x,'y':n.sweep.y});
+                        cls='selected';
+                      }
+                      console.log(pts);
+                      pts = App.chain(pts.map((v)=> [v.x,v.y]));
+                      console.log(pts);
+                    }
+                    return <polyline id={`el${i}`} className={cls} points={pts} />
+                  }
                 }
               })};
             </svg>
@@ -101,9 +117,16 @@ class App extends Component {
 
   setMode(mode) {
     let state = {'mode':mode};
-    if (this.state.mode==='chain') {
+    if (this.state.mode==='chain' || this.state.mode==='spline') {
       let nodes = this.state.nodes.slice() || [];
-      nodes.push({'mode':'unchained'});
+      let node = nodes.pop();
+      if (node && node.sweep) {
+        node.sweep=undefined;
+      }
+      nodes.push(node);
+      if(this.state.mode==='chain') {
+        nodes.push({'mode':'unchained'});
+      }
       state['nodes']=nodes;
     }
     else if(this.state.mode==='edit' && mode !=='edit') {
@@ -128,6 +151,10 @@ class App extends Component {
     this.setMode('chain');
   }
 
+  setModeToSpline() {
+    this.setMode('spline');
+  }
+
   handleMove(e) {
     const offX = 175;
     const offY = 75;
@@ -141,9 +168,8 @@ class App extends Component {
       nodes.push(node);
       this.setState({'nodes':nodes});
     }
-    else if (node && node.mode==='chain' && node.points.length > 0) {
+    else if (node && (node.mode ==='chain' || node.mode=== 'spline') && node.points.length > 0) {
       node.sweep={'x':x,'y':y};
-      console.log(`setting sweep: ${node.sweep.x},${node.sweep.y}`);
       nodes.push(node);
       this.setState({'nodes':nodes});
     }
@@ -167,15 +193,15 @@ class App extends Component {
 
 
     }
-    else if(mode==='chain') {
+    else if(mode==='chain' || mode==='spline') {
       let nodes = this.state.nodes.slice() || [];
       var node;
-      if(nodes.length > 0 && nodes[nodes.length-1].mode==='chain') {
+      if(nodes.length > 0 && nodes[nodes.length-1].mode===mode) {
         node = nodes.pop();
         node.points.push({'x':x, 'y':y});
       }
       else {
-        node = {'mode':'chain','points':[{'x':x, 'y':y}]};
+        node = {'mode':mode,'points':[{'x':x, 'y':y}]};
       }
       nodes.push(node);
       this.setState({'nodes':nodes});
@@ -252,6 +278,98 @@ class App extends Component {
   undoAll() {
     this.setState({'nodes':[]});
   }
+
+////////////////////////////////
+  static spline(P0,P1,P2,P3, size=100) {
+    let alpha = 0.5;
+    let tj = (ti, Pi, Pj) => {
+      let xi = Pi[0];
+      let yi = Pi[1];
+      let xj = Pj[0];
+      let yj = Pj[1];
+
+      return ( ( (xj - xi)**2 + (yj-yi)**2 )**0.5 )**alpha + ti;
+    };
+
+    let t0 = 0;
+    let t1 = tj(t0, P0, P1);
+    let t2 = tj(t1, P1, P2);
+    let t3 = tj(t2, P2, P3);
+
+    let ts = [];
+    let cs = [];
+    for (var i = 0; i < size; i++) {
+      const step = i/size;
+
+      const t = step * t2 + (1-step) * t1;
+
+      ts.push(t);
+      
+      let A1 = ([(t1-t)/(t1-t0)*P0[0] + (t-t0)/(t1-t0)*P1[0], (t1-t)/(t1-t0)*P0[1] + (t-t0)/(t1-t0)*P1[1]]);
+      let A2 = ([(t2-t)/(t2-t1)*P1[0] + (t-t1)/(t2-t1)*P2[0], (t2-t)/(t2-t1)*P1[1] + (t-t1)/(t2-t1)*P2[1]]);
+      let A3 = ([(t3-t)/(t3-t2)*P2[0] + (t-t2)/(t3-t2)*P3[0], (t3-t)/(t3-t2)*P2[1] + (t-t2)/(t3-t2)*P3[1]]);
+
+      let B1 = ([(t2-t)/(t2-t0)*A1[0] + (t-t0)/(t2-t0)*A2[0], (t2-t)/(t2-t0)*A1[1] + (t-t0)/(t2-t0)*A2[1]]);
+      let B2 = ([(t3-t)/(t3-t1)*A2[0] + (t-t1)/(t3-t1)*A3[0], (t3-t)/(t3-t1)*A2[1] + (t-t1)/(t3-t1)*A3[1]]);
+    
+      let C = ([(t2-t)/(t2-t1)*B1[0] + (t-t1)/(t2-t1)*B2[0], (t2-t)/(t2-t1)*B1[1] + (t-t1)/(t2-t1)*B2[1]]);
+
+      cs.push(C);
+    }
+
+    return cs;
+  }
+
+  static chain(P, reflectedEnds=false) {
+    var pts = [];
+    if(reflectedEnds === true) {
+      var startdiff = [P[0][0] - P[1][0], P[0][1] - P[1][1]];
+      var start = [P[0][0] + startdiff[0], P[0][1] + startdiff[1]];
+      pts.push(start);
+    }
+    P.filter((v,i,a) => i+3 < P.length)
+      .forEach((v,i) => {
+        pts = pts.concat(this.spline(P[i], P[i+1], P[i+2], P[i+3]));
+    });
+
+    if(reflectedEnds === true) {
+      var enddiff = [P[P.length-1][0] - P[P.length-2][0], P[P.length-1][1] - P[P.length-2][1]];
+      var end = [P[P.length-1][0] + enddiff[0], P[P.length-1][1] + enddiff[1]];
+      pts = pts.concat(end);
+    }
+   
+    const ptstr = pts.map((pt) => `${pt[0]},${pt[1]}`).join(' ');
+
+    return ptstr;
+  }
+
+  static cat2bez(P0, P1, P2, P3) {
+    let alpha = 0.5;
+    let tj = (ti, Pi, Pj) => {
+      let xi = Pi[0];
+      let yi = Pi[1];
+      let xj = Pj[0];
+      let yj = Pj[1];
+
+      return ( ( (xj - xi)**2 + (yj-yi)**2 )**0.5 )**alpha + ti;
+    };
+
+    let t0 = 0;
+    let t1 = tj(t0, P0, P1);
+    let t2 = tj(t1, P1, P2);
+    let t3 = tj(t2, P2, P3);
+
+    let c1 = (t2-t1)/(t2-t0);
+    let c2 = (t1-t0)/(t2-t0);
+    let d1 = (t3-t2)/(t3-t1);
+    let d2 = (t2-t1)/(t3-t1);
+
+    let M1 = [(t2-t1)*(c1*(P1[0]-P0[0])/(t1-t0) + c2*(P2[0]-P1[0])/(t2-t1)), (t2-t1)*(c1*(P1[1]-P0[1])/(t1-t0) + c2*(P2[1]-P1[1])/(t2-t1))];
+    let M2 = [(t2-t1)*(d1*(P2[0]-P1[0])/(t2-t1) + d2*(P3[0]-P2[0])/(t3-t2)), (t2-t1)*(d1*(P2[1]-P1[1])/(t2-t1) + d2*(P3[1]-P2[1])/(t3-t2))];
+
+    return [P1, [P1[0] + M1[0]/3,P1[1] + M1[1]/3], [P2[0] - M2[0]/3, P2[1] - M2[1]/3], P2];
+  }
+
 }
 
 export default App;
