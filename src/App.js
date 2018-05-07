@@ -91,13 +91,14 @@ class App extends Component {
                       pts = pts.join(' ');
                     }
                     else if(n.mode==='spline') {
-                      if(n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)) {
+                      let swept = n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y);
+                      if(swept) {
                         pts.push({'x':n.sweep.x,'y':n.sweep.y});
                         cls='selected';
                       }
                       if(pts.length > 3) {
                         console.log(pts);
-                        pts = App.chain(pts.map((v)=> [v.x,v.y]), true);
+                        pts = App.chain(pts.map((v)=> [v.x,v.y]), swept);
                         console.log(pts);
                       }
                       else {
@@ -129,9 +130,9 @@ class App extends Component {
         node.sweep=undefined;
       }
       nodes.push(node);
-      if(this.state.mode==='chain') {
+      //if(this.state.mode==='chain') {
         nodes.push({'mode':'unchained'});
-      }
+      //}
       state['nodes']=nodes;
     }
     else if(this.state.mode==='edit' && mode !=='edit') {
@@ -325,14 +326,14 @@ class App extends Component {
     return cs;
   }
 
-  static chain(P, reflectedEnds=false) {
+  static chain(P, reflectedTail=false) {
     var pts = [];
     P = P.slice() || [];
-    if(reflectedEnds === true) {
-      var startdiff = [P[0][0] - P[1][0], P[0][1] - P[1][1]];
+    if(reflectedTail === true) {
+      /*var startdiff = [P[0][0] - P[1][0], P[0][1] - P[1][1]];
       var start = [P[0][0] + startdiff[0], P[0][1] + startdiff[1]];
       P = [start].concat(P);
-
+*/
       var enddiff = [P[P.length-1][0] - P[P.length-2][0], P[P.length-1][1] - P[P.length-2][1]];
       var end = [P[P.length-1][0] + enddiff[0], P[P.length-1][1] + enddiff[1]];
       P = P.concat([end]);
@@ -343,12 +344,6 @@ class App extends Component {
         pts = pts.concat(this.spline(P[i], P[i+1], P[i+2], P[i+3]));
     });
 
-/*    if(reflectedEnds === true) {
-      var enddiff = [P[P.length-1][0] - P[P.length-2][0], P[P.length-1][1] - P[P.length-2][1]];
-      var end = [P[P.length-1][0] + enddiff[0], P[P.length-1][1] + enddiff[1]];
-      pts = pts.concat([end]);
-    }
-*/   
     const ptstr = pts.map((pt) => `${pt[0]},${pt[1]}`).join(' ');
 
     return ptstr;
