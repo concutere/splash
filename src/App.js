@@ -95,9 +95,14 @@ class App extends Component {
                         pts.push({'x':n.sweep.x,'y':n.sweep.y});
                         cls='selected';
                       }
-                      console.log(pts);
-                      pts = App.chain(pts.map((v)=> [v.x,v.y]));
-                      console.log(pts);
+                      if(pts.length > 3) {
+                        console.log(pts);
+                        pts = App.chain(pts.map((v)=> [v.x,v.y]), true);
+                        console.log(pts);
+                      }
+                      else {
+                        pts='';
+                      }
                     }
                     return <polyline id={`el${i}`} className={cls} points={pts} />
                   }
@@ -322,22 +327,28 @@ class App extends Component {
 
   static chain(P, reflectedEnds=false) {
     var pts = [];
+    P = P.slice() || [];
     if(reflectedEnds === true) {
       var startdiff = [P[0][0] - P[1][0], P[0][1] - P[1][1]];
       var start = [P[0][0] + startdiff[0], P[0][1] + startdiff[1]];
-      pts.push(start);
+      P = [start].concat(P);
+
+      var enddiff = [P[P.length-1][0] - P[P.length-2][0], P[P.length-1][1] - P[P.length-2][1]];
+      var end = [P[P.length-1][0] + enddiff[0], P[P.length-1][1] + enddiff[1]];
+      P = P.concat([end]);
+
     }
     P.filter((v,i,a) => i+3 < P.length)
       .forEach((v,i) => {
         pts = pts.concat(this.spline(P[i], P[i+1], P[i+2], P[i+3]));
     });
 
-    if(reflectedEnds === true) {
+/*    if(reflectedEnds === true) {
       var enddiff = [P[P.length-1][0] - P[P.length-2][0], P[P.length-1][1] - P[P.length-2][1]];
       var end = [P[P.length-1][0] + enddiff[0], P[P.length-1][1] + enddiff[1]];
-      pts = pts.concat(end);
+      pts = pts.concat([end]);
     }
-   
+*/   
     const ptstr = pts.map((pt) => `${pt[0]},${pt[1]}`).join(' ');
 
     return ptstr;
