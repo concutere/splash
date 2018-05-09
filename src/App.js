@@ -30,7 +30,7 @@ class App extends Component {
       const node = this.state.nodes[this.state.detailsIndex];
       details.push(<div><div className="detail-label">id</div><div className="detail">{this.state.detailsIndex}</div></div>);
       for (var n in node) {
-        if(node.mode === 'chain' && n === 'points') {
+        if((node.mode === 'chain' || node.mode === 'spline') && n === 'points') {
           let points = node[n];
           points.forEach((v,i,a) => {
             details.push(
@@ -80,26 +80,24 @@ class App extends Component {
                   }
                   else if(n.mode==='chain' || n.mode==='spline') {
                     var pts=n.points.slice() || [];
+                    let swept = n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y);
                     if(n.mode==='chain') {
                       pts = pts.map((v,i,a) => {
                         return `${v.x},${v.y}`;
                       });
-                      if(n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)) {
+                      if(swept) {
                         pts.push(`${n.sweep.x},${n.sweep.y}`);
                         cls='selected';
                       }
                       pts = pts.join(' ');
                     }
                     else if(n.mode==='spline') {
-                      let swept = n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y);
                       if(swept) {
                         pts.push({'x':n.sweep.x,'y':n.sweep.y});
                         cls='selected';
                       }
                       if(pts.length > 3) {
-                        console.log(pts);
                         pts = App.chain(pts.map((v)=> [v.x,v.y]), swept);
-                        console.log(pts);
                       }
                       else {
                         pts='';
@@ -108,7 +106,15 @@ class App extends Component {
                     return <polyline id={`el${i}`} className={cls} points={pts} />
                   }
                 }
-              })};
+              })}
+              <g id="controls">
+                {
+                  this.state.nodes.filter((n,i,a) => n !== undefined && n.mode === 'spline' && ( i === this.state.detailsIndex || (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y))))
+                    .map((n) => n.points.map((pt,pi) => {
+                        return <rect x={pt.x-1.25} y={pt.y-1.25} width={2.5} height={2.5} fill="white" stroke="orangered" strokeWidth="0.5" />
+                      }))
+                }
+              </g>
             </svg>
           </div>
         </div>
