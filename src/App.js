@@ -103,15 +103,15 @@ class App extends Component {
                         pts='';
                       }
                     }
-                    return <polyline id={`el${i}`} className={cls} points={pts} />
+                    return <polyline id={`el${i}`} className={cls} points={pts} fill="none" stroke="black"/>
                   }
                 }
               })}
               <g id="controls">
                 {
-                  this.state.nodes.filter((n,i,a) => n !== undefined && n.mode === 'spline' && ( i === this.state.detailsIndex || (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y))))
+                  this.state.nodes.filter((n,i,a) => n !== undefined && ['spline','chain'].includes(n.mode) && ( i === this.state.detailsIndex || (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y))))
                     .map((n) => n.points.map((pt,pi) => {
-                        return <rect x={pt.x-1.25} y={pt.y-1.25} width={2.5} height={2.5} fill="white" stroke="orangered" strokeWidth="0.5" />
+                        return <rect id={`ctl${pi}`} x={pt.x-1.25} y={pt.y-1.25} width={2.5} height={2.5} fill="white" stroke="orangered" strokeWidth="0.5" />
                       }))
                 }
               </g>
@@ -173,17 +173,33 @@ class App extends Component {
     const x = e.clientX - offX;
     const y = e.clientY - offY;
     let nodes = this.state.nodes.slice() || [];
-    let node = nodes.pop();
-    if(node && node.mode === 'line-part') {
-      node.x2 = x;
-      node.y2 = y;
-      nodes.push(node);
-      this.setState({'nodes':nodes});
+
+    if (this.state.mode === 'editctl') {
+      let node = nodes[this.state.detailsIndex];
+      
+      if(node && node.points && node.points.length > 0) {
+        let ctlid = this.state.ctlid;
+        let pts = node.points.slice();
+        pts[ctlid] = {'x':x,'y':y};
+        node.points = pts;
+        nodes[this.state.detailsIndex] = node;
+        this.setState({'nodes':nodes});
+
+      }
     }
-    else if (node && (node.mode ==='chain' || node.mode=== 'spline') && node.points.length > 0) {
-      node.sweep={'x':x,'y':y};
-      nodes.push(node);
-      this.setState({'nodes':nodes});
+    else {
+      let node = nodes.pop();
+      if(node && node.mode === 'line-part') {
+        node.x2 = x;
+        node.y2 = y;
+        nodes.push(node);
+        this.setState({'nodes':nodes});
+      }
+      else if (node && (node.mode ==='chain' || node.mode=== 'spline') && node.points.length > 0) {
+        node.sweep={'x':x,'y':y};
+        nodes.push(node);
+        this.setState({'nodes':nodes});
+      }
     }
   }
 
@@ -220,14 +236,19 @@ class App extends Component {
     }
     else if(mode==='edit') {
       let id = e.target.id;
-      let numpart = id.substr(2);
-      if (id.substr(0,2) !== 'el' || isNaN(numpart)) {
-        numpart = -1;
+      if (id.substr(0,3) === 'ctl') {
+        this.setState({'mode':'editctl','ctlid':id.substr(3)});
       }
       else {
-        numpart = parseInt(numpart);
+        let numpart = id.substr(2);
+        if (id.substr(0,2) !== 'el' || isNaN(numpart)) {
+          numpart = -1;
+        }
+        else {
+          numpart = parseInt(numpart);
+        }
+        this.setState({'detailsIndex':numpart});
       }
-      this.setState({'detailsIndex':numpart});
     }
   }
 
@@ -247,6 +268,9 @@ class App extends Component {
         nodes.push(node);
         this.setState({'nodes':nodes});
       }
+    }
+    else if(mode === 'editctl') {
+      this.setState({'mode':'edit', 'ctlid':-1});
     }
     /*else if(mode==='chain') {
       let nodes = this.state.nodes.slice();
