@@ -1,11 +1,13 @@
 import React, { Component } from 'react';
 import './App.css';
+import  {Curve} from './Curve.js';
+import {Details} from './Details.js';
 
 class App extends Component {
   constructor(props) {
     super(props);
 
-    this.state = {'mode':'edit','nodes':[]};
+    this.state = {'mode':'edit','nodes':[], 'lastClicked':-1};
 
     this.setMode = this.setMode.bind(this);
     this.setModeToEdit = this.setModeToEdit.bind(this);
@@ -25,24 +27,11 @@ class App extends Component {
   }
  
   render() {
-    var details=[];
-    if(this.state.mode==='edit' && this.state.detailsIndex >=0 && this.state.detailsIndex < this.state.nodes.length) {
-      const node = this.state.nodes[this.state.detailsIndex];
-      details.push(<div><div className="detail-label">id</div><div className="detail">{this.state.detailsIndex}</div></div>);
-      for (var n in node) {
-        if((node.mode === 'chain' || node.mode === 'spline') && n === 'points') {
-          let points = node[n];
-          points.forEach((v,i,a) => {
-            details.push(
-              <div><div className="detail-label">{(i === 0 ? n : '')}</div><div className="detail">{`${v.x},${v.y}`}</div></div>
-            );  
-          });
-        }
-        else {
-          details.push(<div><div className="detail-label">{n}</div><div className="detail">{node[n]}</div></div>);
-        }
-      }
-    }
+    let node = (this.state.detailsIndex > -1 && this.state.nodes.length > this.state.detailsIndex) ?
+                this.state.nodes[this.state.detailsIndex] :
+                undefined;
+
+    let id = this.state.detailsIndex;
 
     return (
       <div className="toolgrid">
@@ -93,11 +82,14 @@ class App extends Component {
                     }
                     else if(n.mode==='spline') {
                       if(swept) {
-                        pts.push({'x':n.sweep.x,'y':n.sweep.y});
+                        let last = n.points[n.points.length-1];
+                        if(!(n.sweep.x === last.x && n.sweep.y === last.y)) {
+                          pts.push({'x':n.sweep.x,'y':n.sweep.y});
+                        }
                         cls='selected';
                       }
                       if(pts.length > 3) {
-                        pts = App.chain(pts.map((v)=> [v.x,v.y]), swept);
+                        pts = Curve.chain(pts.map((v)=> [v.x,v.y]), swept);
                       }
                       else {
                         pts='';
@@ -111,7 +103,7 @@ class App extends Component {
                 {
                   this.state.nodes.filter((n,i,a) => n !== undefined && ['spline','chain'].includes(n.mode) && ( i === this.state.detailsIndex || (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y))))
                     .map((n) => n.points.map((pt,pi) => {
-                        return <rect id={`ctl${pi}`} x={pt.x-1.25} y={pt.y-1.25} width={2.5} height={2.5} fill="white" stroke="orangered" strokeWidth="0.5" />
+                        return <rect id={`ctl${pi}`} x={pt.x-1.75} y={pt.y-1.75} width={3.5} height={3.5} fill="white" stroke="orangered" strokeWidth="0.5" />
                       }))
                 }
               </g>
@@ -119,8 +111,7 @@ class App extends Component {
           </div>
         </div>
         <div id="properties">
-          <div>DETAILS</div>
-          <div className="details">{details}</div>
+          <Details node={node} id={id} />
         </div>
         
       </div>
@@ -224,6 +215,8 @@ class App extends Component {
     else if(mode==='chain' || mode==='spline') {
       let nodes = this.state.nodes.slice() || [];
       var node;
+
+
       if(nodes.length > 0 && nodes[nodes.length-1].mode===mode) {
         node = nodes.pop();
         node.points.push({'x':x, 'y':y});
@@ -237,9 +230,75 @@ class App extends Component {
     else if(mode==='edit') {
       let id = e.target.id;
       if (id.substr(0,3) === 'ctl') {
-        this.setState({'mode':'editctl','ctlid':id.substr(3)});
+
+        const dblClickOffset = 300;
+        let clickedAt = Date.now();
+        if (this.state.lastClicked && clickedAt - this.state.lastClicked < dblClickOffset) {
+          console.log('dblclickd');
+          let cid = parseInt(id.substr(3));
+          console.log(cid);
+          
+          var nodes = this.state.nodes.slice();
+          var node = nodes[this.state.detailsIndex]
+          console.log(node);
+          let pts = node.points.filter((_,i) => i !== cid);
+          console.log(pts);
+          node.points = pts;
+          nodes[this.state.detailsIndex] = node;
+          console.log(nodes);
+
+          this.setState({'mode':'edit','ctlid':-1, 'lastClicked':clickedAt, 'nodes':nodes});
+
+        }
+        else {
+          this.setState({'mode':'editctl','ctlid':id.substr(3), 'lastClicked':clickedAt});
+        }
       }
       else {
+        const dblClickOffset = 300;
+        let clickedAt = Date.now();
+        if (this.state.lastClicked && clickedAt - this.state.lastClicked < dblClickOffset) {
+          let nodes = this.state.nodes.slice() || [];
+          var node = nodes[this.state.detailsIndex];
+    
+          if (node && node.points) {
+            //todo find correct segment to insert new control point
+            //current naive least distance approach has too many false positives
+            let pts = node.points.slice();
+            var closestPt = pts[pts.length-1];
+            var ci = pts.length-1;
+            var diff = Math.sqrt(Math.pow(x-closestPt.x,2) + Math.pow(y-closestPt.y,2));
+
+            pts.forEach((p,i) => {
+              let d = Math.sqrt(Math.pow(x-p.x,2) + Math.pow(y-p.y,2));
+              if (d < diff) {
+                closestPt = p;
+                ci = i;
+                diff = d;
+              }
+            });
+            console.log(ci, closestPt.x, closestPt.y, diff);
+            var nextPt;
+            if(ci <= 0) {
+              nextPt = pts[1];
+            } 
+            else if(ci >= pts.length-1) {
+              nextPt = pts[pts.length-2];
+            }
+            else {
+              let d1 = Math.sqrt(Math.pow(pts[ci-1].x-x,2) + Math.pow(pts[ci-1].y-y,2));
+              let d2 = Math.sqrt(Math.pow(pts[ci+1].x-x,2) + Math.pow(pts[ci+1].y-y,2));
+              if(d1 < d2) {
+                ci--;
+              }
+              pts.splice(ci,0,{x:x, y:y});
+              node.points = pts;
+              nodes[this.state.detailsIndex] = node;
+              this.setState({'nodes':nodes});
+            }
+
+          }
+        }
         let numpart = id.substr(2);
         if (id.substr(0,2) !== 'el' || isNaN(numpart)) {
           numpart = -1;
@@ -247,7 +306,7 @@ class App extends Component {
         else {
           numpart = parseInt(numpart);
         }
-        this.setState({'detailsIndex':numpart});
+        this.setState({'detailsIndex':numpart,'lastClicked':clickedAt});
       }
     }
   }
@@ -316,96 +375,6 @@ class App extends Component {
   }
 
 ////////////////////////////////
-  static spline(P0,P1,P2,P3, size=100) {
-    let alpha = 0.5;
-    let tj = (ti, Pi, Pj) => {
-      let xi = Pi[0];
-      let yi = Pi[1];
-      let xj = Pj[0];
-      let yj = Pj[1];
-
-      return ( ( (xj - xi)**2 + (yj-yi)**2 )**0.5 )**alpha + ti;
-    };
-
-    let t0 = 0;
-    let t1 = tj(t0, P0, P1);
-    let t2 = tj(t1, P1, P2);
-    let t3 = tj(t2, P2, P3);
-
-    let ts = [];
-    let cs = [];
-    for (var i = 0; i < size; i++) {
-      const step = i/size;
-
-      const t = step * t2 + (1-step) * t1;
-
-      ts.push(t);
-      
-      let A1 = ([(t1-t)/(t1-t0)*P0[0] + (t-t0)/(t1-t0)*P1[0], (t1-t)/(t1-t0)*P0[1] + (t-t0)/(t1-t0)*P1[1]]);
-      let A2 = ([(t2-t)/(t2-t1)*P1[0] + (t-t1)/(t2-t1)*P2[0], (t2-t)/(t2-t1)*P1[1] + (t-t1)/(t2-t1)*P2[1]]);
-      let A3 = ([(t3-t)/(t3-t2)*P2[0] + (t-t2)/(t3-t2)*P3[0], (t3-t)/(t3-t2)*P2[1] + (t-t2)/(t3-t2)*P3[1]]);
-
-      let B1 = ([(t2-t)/(t2-t0)*A1[0] + (t-t0)/(t2-t0)*A2[0], (t2-t)/(t2-t0)*A1[1] + (t-t0)/(t2-t0)*A2[1]]);
-      let B2 = ([(t3-t)/(t3-t1)*A2[0] + (t-t1)/(t3-t1)*A3[0], (t3-t)/(t3-t1)*A2[1] + (t-t1)/(t3-t1)*A3[1]]);
-    
-      let C = ([(t2-t)/(t2-t1)*B1[0] + (t-t1)/(t2-t1)*B2[0], (t2-t)/(t2-t1)*B1[1] + (t-t1)/(t2-t1)*B2[1]]);
-
-      cs.push(C);
-    }
-
-    return cs;
-  }
-
-  static chain(P, reflectedTail=false) {
-    var pts = [];
-    P = P.slice() || [];
-    if(reflectedTail === true) {
-      /*var startdiff = [P[0][0] - P[1][0], P[0][1] - P[1][1]];
-      var start = [P[0][0] + startdiff[0], P[0][1] + startdiff[1]];
-      P = [start].concat(P);
-*/
-      var enddiff = [P[P.length-1][0] - P[P.length-2][0], P[P.length-1][1] - P[P.length-2][1]];
-      var end = [P[P.length-1][0] + enddiff[0], P[P.length-1][1] + enddiff[1]];
-      P = P.concat([end]);
-
-    }
-    P.filter((v,i,a) => i+3 < P.length)
-      .forEach((v,i) => {
-        pts = pts.concat(this.spline(P[i], P[i+1], P[i+2], P[i+3]));
-    });
-
-    const ptstr = pts.map((pt) => `${pt[0]},${pt[1]}`).join(' ');
-
-    return ptstr;
-  }
-
-  static cat2bez(P0, P1, P2, P3) {
-    let alpha = 0.5;
-    let tj = (ti, Pi, Pj) => {
-      let xi = Pi[0];
-      let yi = Pi[1];
-      let xj = Pj[0];
-      let yj = Pj[1];
-
-      return ( ( (xj - xi)**2 + (yj-yi)**2 )**0.5 )**alpha + ti;
-    };
-
-    let t0 = 0;
-    let t1 = tj(t0, P0, P1);
-    let t2 = tj(t1, P1, P2);
-    let t3 = tj(t2, P2, P3);
-
-    let c1 = (t2-t1)/(t2-t0);
-    let c2 = (t1-t0)/(t2-t0);
-    let d1 = (t3-t2)/(t3-t1);
-    let d2 = (t2-t1)/(t3-t1);
-
-    let M1 = [(t2-t1)*(c1*(P1[0]-P0[0])/(t1-t0) + c2*(P2[0]-P1[0])/(t2-t1)), (t2-t1)*(c1*(P1[1]-P0[1])/(t1-t0) + c2*(P2[1]-P1[1])/(t2-t1))];
-    let M2 = [(t2-t1)*(d1*(P2[0]-P1[0])/(t2-t1) + d2*(P3[0]-P2[0])/(t3-t2)), (t2-t1)*(d1*(P2[1]-P1[1])/(t2-t1) + d2*(P3[1]-P2[1])/(t3-t2))];
-
-    return [P1, [P1[0] + M1[0]/3,P1[1] + M1[1]/3], [P2[0] - M2[0]/3, P2[1] - M2[1]/3], P2];
-  }
-
 }
 
 export default App;
