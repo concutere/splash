@@ -178,6 +178,23 @@ class App extends Component {
 
       }
     }
+    else if(this.state.mode === 'edit'){
+      if (this.state.detailsIndex > -1 && this.state.moveFrom && (this.state.moveFrom.x !== x || this.state.moveFrom.y !== y)) {
+        const dx = x - this.state.moveFrom.x;
+        const dy = y - this.state.moveFrom.y;
+
+        //let nodes = this.state.nodes.slice() || [];
+        let node = nodes[this.state.detailsIndex];
+        //TODO nodes need centralized/inherited transform options
+        if(node.mode==='chain' || node.mode==='spline') {
+          let pts = node.points.map((pt) => ({x:pt.x+dx, y:pt.y+dy}));
+          node.points = pts;
+          console.log(nodes);
+          this.setState({'nodes':nodes});
+        }
+        this.setState({'moveFrom':{x:x,y:y}});
+      }
+    }
     else {
       let node = nodes.pop();
       if(node && node.mode === 'line-part') {
@@ -263,8 +280,10 @@ class App extends Component {
     
           if (node && node.points) {
             //todo find correct segment to insert new control point
-            //current naive least distance approach has too many false positives
-            let pts = node.points.slice();
+            //todo optimize from checking full render pts for curve?
+            let ctls = node.points.slice();
+            let pts = Curve.chainPts(ctls.map((v) => [v.x,v.y])).map((v) => ({x:v[0], y:v[1]}));
+            //console.log(pts);
             var closestPt = pts[pts.length-1];
             var ci = pts.length-1;
             var diff = Math.sqrt(Math.pow(x-closestPt.x,2) + Math.pow(y-closestPt.y,2));
@@ -277,27 +296,19 @@ class App extends Component {
                 diff = d;
               }
             });
-            console.log(ci, closestPt.x, closestPt.y, diff);
-            var nextPt;
-            if(ci <= 0) {
-              nextPt = pts[1];
-            } 
-            else if(ci >= pts.length-1) {
-              nextPt = pts[pts.length-2];
-            }
-            else {
-              let d1 = Math.sqrt(Math.pow(pts[ci-1].x-x,2) + Math.pow(pts[ci-1].y-y,2));
-              let d2 = Math.sqrt(Math.pow(pts[ci+1].x-x,2) + Math.pow(pts[ci+1].y-y,2));
-              if(d1 < d2) {
-                ci--;
-              }
-              pts.splice(ci,0,{x:x, y:y});
-              node.points = pts;
+            //console.log(ci, closestPt.x, closestPt.y, diff);
+            let pi = Math.ceil(ci / 100) + 1;
+            if(pi > 0 && pi < ctls.length) {
+              ctls.splice(pi,0,{x:x, y:y});
+              node.points = ctls;
               nodes[this.state.detailsIndex] = node;
               this.setState({'nodes':nodes});
             }
-
+            //else console.log(pi);
           }
+        }
+        else {
+          this.setState({'moveFrom':{x:x, y:y}});
         }
         let numpart = id.substr(2);
         if (id.substr(0,2) !== 'el' || isNaN(numpart)) {
@@ -330,6 +341,23 @@ class App extends Component {
     }
     else if(mode === 'editctl') {
       this.setState({'mode':'edit', 'ctlid':-1});
+    }
+    //TODO refactor move? also used in handleMove ...
+    else if(mode === 'edit') {
+      this.setState({'moveFrom':undefined});
+      /*if(this.state.moveFrom.x !== x || this.state.moveFrom.y !== y)) {
+      const dx = x - this.state.moveFrom.x;
+      const dy = y - this.state.moveFrom.y;
+
+      let nodes = this.state.nodes.slice() || [];
+      let node = nodes[this.state.detailsIndex];
+      //TODO nodes need centralized/inherited transform options
+      if(node.mode==='chain' || node.mode==='spline') {
+        let pts = node.points.map((pt) => ({x:pt.x+dx, y:pt.y+dy}));
+        node.points = pts;
+        console.log(nodes);
+        this.setState({'nodes':nodes});
+      }*/
     }
     /*else if(mode==='chain') {
       let nodes = this.state.nodes.slice();

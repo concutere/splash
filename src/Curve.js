@@ -39,7 +39,8 @@ export class Curve {
     return cs;
   }
 
-  static chain(P, reflectedTail=false) {
+  static chainPts(P, reflectedTail=false) {
+  
     var pts = [];
     P = P.slice() || [];
     if(reflectedTail === true) {
@@ -57,6 +58,11 @@ export class Curve {
         pts = pts.concat(this.spline(P[i], P[i+1], P[i+2], P[i+3]));
     });
 
+    return pts;
+  }
+
+  static chain(P, reflectedTail=false) {
+    const pts = Curve.chainPts(P, reflectedTail);
     const ptstr = pts.map((pt) => `${pt[0]},${pt[1]}`).join(' ');
 
     return ptstr;
