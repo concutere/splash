@@ -75,7 +75,7 @@
 }
 
 
-/********************/
+/*******************
 
 line:hover, 
 circle:hover,
@@ -83,7 +83,14 @@ polyline:hover,
 polygon:hover,
 ellipse:hover,
 rect:hover,
-path:hover,
+path:hover,*/
+line.editable:hover,
+circle.editable:hover,
+polyline.editable:hover,
+polygon.editable:hover,
+ellipse.editable:hover,
+rect.editable:hover,
+path.editable:hover,
 line.selected, 
 circle.selected,
 polyline.selected,

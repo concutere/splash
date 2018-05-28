@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, Fragment } from 'react';
 import './App.css';
 import  {Curve} from './Curve.js';
 import {Details} from './Details.js';
@@ -43,7 +43,6 @@ class App extends Component {
           <div id="clear" onClick={this.undoAll}>CLEAR</div>
           <div id="undo" onClick={this.undoOne}>UNDO</div>
           <div id="edit" onClick={this.setModeToEdit} className={(this.state.mode === 'edit') ? 'selected' : ''}>EDIT</div>
-          <div id="point" onClick={this.setModeToPoint} className={(this.state.mode === 'point') ? 'selected' : ''}>POINT</div>
           <div id="line" onClick={this.setModeToLine} className={(this.state.mode === 'line') ? 'selected' : ''}>LINE</div>
           <div id="chain" onClick={this.setModeToChain} className={(this.state.mode === 'chain') ? 'selected' : ''}>CHAIN</div>
           <div id="spline" onClick={this.setModeToSpline} className={(this.state.mode === 'spline') ? 'selected' : ''}>SPLINE</div>
@@ -55,7 +54,13 @@ class App extends Component {
           <div className="output-cnt">
             <svg xmlns="http://www.w3.org/2000/svg" id="surface" width="100%" height="100%" preserveAspectRatio="none" onMouseDown={this.startClick} onMouseUp={this.endClick} onMouseMove={this.handleMove}>
               {this.state.nodes.map((n,i,a) => {
-                var cls = (this.state.detailsIndex===i) ? 'selected' : '';
+                var cls = '';
+                if (this.state.detailsIndex===i) {
+                  cls= 'selected';
+                 }
+                 else if(this.state.detailsIndex===-1 && this.state.mode === 'edit') {
+                   cls = 'editable';
+                 }
                 if(n){
                   if(n.mode==='point') { 
                     return <circle id={`el${i}`} cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent" className={cls}/>
@@ -75,7 +80,7 @@ class App extends Component {
                         return `${v.x},${v.y}`;
                       });
                       if(swept) {
-                        pts.push(`${n.sweep.x},${n.sweep.y}`);
+                        //pts.push(`${n.sweep.x},${n.sweep.y}`);
                         cls='selected';
                       }
                       pts = pts.join(' ');
@@ -89,7 +94,7 @@ class App extends Component {
                         cls='selected';
                       }
                       if(pts.length > 3) {
-                        pts = Curve.chain(pts.map((v)=> [v.x,v.y]), swept);
+                        pts = Curve.chain(pts.map((v)=> [v.x,v.y]));//, swept);
                       }
                       else {
                         pts='';
@@ -100,11 +105,23 @@ class App extends Component {
                 }
               })}
               <g id="controls">
-                {
+              {
                   this.state.nodes.filter((n,i,a) => n !== undefined && ['spline','chain'].includes(n.mode) && ( i === this.state.detailsIndex || (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y))))
                     .map((n) => n.points.map((pt,pi) => {
                         return <rect id={`ctl${pi}`} x={pt.x-1.75} y={pt.y-1.75} width={3.5} height={3.5} fill="white" stroke="orangered" strokeWidth="0.5" />
                       }))
+                }
+                {
+                  this.state.nodes.filter((n,i,a) => n !== undefined && ['spline'].includes(n.mode) && n.points.length > 1 && (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)))
+                    .map((n) => 
+                        <polyline id="sweepline" points={Curve.chain(n.points.filter((n,i,a) => i >= a.length-2).concat([n.sweep]).map((v) => [v.x, v.y]), true)}  fill="none" stroke="orangered" strokeWidth="0.5" strokeDasharray="5, 5" />
+                      )
+                }
+                {
+                  this.state.nodes.filter((n,i,a) => n !== undefined && ['chain'].includes(n.mode) && n.points.length > 0 && (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)))
+                    .map((n) => 
+                        <line id="sweepline" x1={n.points[n.points.length-1].x} y1={n.points[n.points.length-1].y} x2={n.sweep.x} y2={n.sweep.y} fill="none" stroke="orangered" strokeWidth="0.5" strokeDasharray="5, 5" />
+                      )
                 }
               </g>
             </svg>
@@ -279,8 +296,7 @@ class App extends Component {
           var node = nodes[this.state.detailsIndex];
     
           if (node && node.points) {
-            //todo find correct segment to insert new control point
-            //todo optimize from checking full render pts for curve?
+            //todo optimize from checking full render pts for segment insertion point?
             let ctls = node.points.slice();
             let pts = Curve.chainPts(ctls.map((v) => [v.x,v.y])).map((v) => ({x:v[0], y:v[1]}));
             //console.log(pts);
