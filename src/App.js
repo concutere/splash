@@ -2,6 +2,7 @@ import React, { Component, Fragment } from 'react';
 import './App.css';
 import  {Curve} from './Curve.js';
 import {Details} from './Details.js';
+import {Strand} from './Strand.js';
 
 class App extends Component {
   constructor(props) {
@@ -74,8 +75,10 @@ class App extends Component {
                   }
                   else if(n.mode==='chain' || n.mode==='spline') {
                     var pts=n.points.slice() || [];
-                    let swept = n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y);
-                    if(n.mode==='chain') {
+                    console.log(i,cls);
+                    //let swept = n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y);
+                    return <Strand id={i} closed={n.closed===true} points={pts} sweep={n.sweep} mode={n.mode} class={cls} />
+                    /*if(n.mode==='chain') {
                       pts = pts.map((v,i,a) => {
                         return `${v.x},${v.y}`;
                       });
@@ -101,7 +104,7 @@ class App extends Component {
                       }
                     }
                     return <polyline id={`el${i}`} className={cls} points={pts} fill="none" stroke="black"/>
-                  }
+                  */}
                 }
               })}
               <g id="controls">
@@ -256,7 +259,7 @@ class App extends Component {
         node.points.push({'x':x, 'y':y});
       }
       else {
-        node = {'mode':mode,'points':[{'x':x, 'y':y}]};
+        node = {'mode':mode,'points':[{'x':x, 'y':y}], 'closed':false};
       }
       nodes.push(node);
       this.setState({'nodes':nodes});
@@ -356,10 +359,27 @@ class App extends Component {
       }
     }
     else if(mode === 'editctl') {
+      let nodes = this.state.nodes.slice();
+      let node = this.state.nodes[this.state.detailsIndex];
+      const pts = node.points;
+      
+      if(this.state.ctlid == 1 || this.state.ctlid == pts.length - 2) {
+        var diff = Math.sqrt(Math.pow(pts[1].x-pts[pts.length-2].x,2) + Math.pow(pts[1].y-pts[pts.length-2].y,2));
+        const ctlw = 3.5;
+        const closed = (diff <= ctlw);
+        
+        if (closed !== node.closed) {
+          node.closed = closed;
+          nodes[this.state.detailsIndex] = node;
+          this.setState({'nodes':nodes});
+        }
+      }
+
       this.setState({'mode':'edit', 'ctlid':-1});
     }
     //TODO refactor move? also used in handleMove ...
     else if(mode === 'edit') {
+      console.log('edit',e);
       this.setState({'moveFrom':undefined});
       /*if(this.state.moveFrom.x !== x || this.state.moveFrom.y !== y)) {
       const dx = x - this.state.moveFrom.x;
