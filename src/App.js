@@ -75,36 +75,8 @@ class App extends Component {
                   }
                   else if(n.mode==='chain' || n.mode==='spline') {
                     var pts=n.points.slice() || [];
-                    console.log(i,cls);
-                    //let swept = n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y);
                     return <Strand id={i} closed={n.closed===true} points={pts} sweep={n.sweep} mode={n.mode} class={cls} />
-                    /*if(n.mode==='chain') {
-                      pts = pts.map((v,i,a) => {
-                        return `${v.x},${v.y}`;
-                      });
-                      if(swept) {
-                        //pts.push(`${n.sweep.x},${n.sweep.y}`);
-                        cls='selected';
-                      }
-                      pts = pts.join(' ');
-                    }
-                    else if(n.mode==='spline') {
-                      if(swept) {
-                        let last = n.points[n.points.length-1];
-                        if(!(n.sweep.x === last.x && n.sweep.y === last.y)) {
-                          pts.push({'x':n.sweep.x,'y':n.sweep.y});
-                        }
-                        cls='selected';
-                      }
-                      if(pts.length > 3) {
-                        pts = Curve.chain(pts.map((v)=> [v.x,v.y]));//, swept);
-                      }
-                      else {
-                        pts='';
-                      }
-                    }
-                    return <polyline id={`el${i}`} className={cls} points={pts} fill="none" stroke="black"/>
-                  */}
+                  }
                 }
               })}
               <g id="controls">
@@ -271,18 +243,15 @@ class App extends Component {
         const dblClickOffset = 300;
         let clickedAt = Date.now();
         if (this.state.lastClicked && clickedAt - this.state.lastClicked < dblClickOffset) {
-          console.log('dblclickd');
+          //console.log('dblclickd');
           let cid = parseInt(id.substr(3));
-          console.log(cid);
+          //console.log(cid);
           
           var nodes = this.state.nodes.slice();
           var node = nodes[this.state.detailsIndex]
-          console.log(node);
           let pts = node.points.filter((_,i) => i !== cid);
-          console.log(pts);
           node.points = pts;
           nodes[this.state.detailsIndex] = node;
-          console.log(nodes);
 
           this.setState({'mode':'edit','ctlid':-1, 'lastClicked':clickedAt, 'nodes':nodes});
 
@@ -347,6 +316,7 @@ class App extends Component {
     const offY = 75;
     const x = e.clientX - offX;
     const y = e.clientY - offY;
+
     if(mode === 'line') {
       let nodes = this.state.nodes;
       let node = nodes.pop();
@@ -363,8 +333,11 @@ class App extends Component {
       let node = this.state.nodes[this.state.detailsIndex];
       const pts = node.points;
       
-      if(this.state.ctlid == 1 || this.state.ctlid == pts.length - 2) {
-        var diff = Math.sqrt(Math.pow(pts[1].x-pts[pts.length-2].x,2) + Math.pow(pts[1].y-pts[pts.length-2].y,2));
+      if((node.mode === 'spline' && node.points.length >= 3 && (this.state.ctlid == 1 || this.state.ctlid == pts.length - 2)) 
+        || (node.mode === 'chain' && node.points.length >= 3 && (this.state.ctlid == 0 || this.state.ctlid == pts.length - 1)))  {
+        const ptA = node.mode === 'chain' ? pts[0] : pts[1];
+        const ptZ = node.mode === 'chain' ? pts[pts.length-1] : pts[pts.length-2];
+        var diff = Curve.dist(ptA, ptZ);
         const ctlw = 3.5;
         const closed = (diff <= ctlw);
         
@@ -379,33 +352,36 @@ class App extends Component {
     }
     //TODO refactor move? also used in handleMove ...
     else if(mode === 'edit') {
-      console.log('edit',e);
       this.setState({'moveFrom':undefined});
-      /*if(this.state.moveFrom.x !== x || this.state.moveFrom.y !== y)) {
-      const dx = x - this.state.moveFrom.x;
-      const dy = y - this.state.moveFrom.y;
-
-      let nodes = this.state.nodes.slice() || [];
-      let node = nodes[this.state.detailsIndex];
-      //TODO nodes need centralized/inherited transform options
-      if(node.mode==='chain' || node.mode==='spline') {
-        let pts = node.points.map((pt) => ({x:pt.x+dx, y:pt.y+dy}));
-        node.points = pts;
-        console.log(nodes);
-        this.setState({'nodes':nodes});
-      }*/
     }
-    /*else if(mode==='chain') {
-      let nodes = this.state.nodes.slice();
-      if (nodes.length > 0) {
-        let node = nodes.pop();
-        if(node.mode==='chain') {
-          node.points.push({'x':x,'y':y});
-          nodes.push(node);
-          this.setState({'nodes':nodes});
+    else if((mode === 'chain' || mode === 'spline') & this.state.nodes[this.state.nodes.length-1].points.length >= 3) {
+      const nodes = this.state.nodes.slice() || [];
+      const node = nodes[nodes.length-1];
+      const first = node.points[0];
+      const second = node.points[1];
+      const ctlw = 3.5;
+      const diff = mode === 'chain' ?
+                    Curve.dist({x:x, y:y}, first) :
+                    Curve.dist({x:x, y:y}, second);
+      
+      if (diff <= ctlw) {
+        node.closed = true;
+        if(node.sweep) {
+          node.sweep = undefined;
         }
+        if(mode==='chain') {
+          node.points[node.points.length-1] = node.points[0];
+        }
+        else if(mode==='spline' && node.points.length >= 3) {
+          node.points[node.points.length-1] = node.points[1];
+          node.points[0] = node.points[node.points.length-2];
+          node.points.push(node.points[2]);
+        }
+        nodes[nodes.length-1] = node;
+        nodes.push({'mode':'unchained'});
+        this.setState({'nodes':nodes, 'mode':'edit'});
       }
-    }*/
+    }
   }
 
   outputSvg() {

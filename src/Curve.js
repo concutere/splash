@@ -94,4 +94,9 @@ export class Curve {
 
     return [P1, [P1[0] + M1[0]/3,P1[1] + M1[1]/3], [P2[0] - M2[0]/3, P2[1] - M2[1]/3], P2];
   }
+
+
+  static dist(ptA, ptZ) {
+    return Math.sqrt(Math.pow(ptA.x-ptZ.x,2) + Math.pow(ptA.y-ptZ.y,2));
+  }
 }
