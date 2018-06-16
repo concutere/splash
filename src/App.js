@@ -3,6 +3,7 @@ import './App.css';
 import  {Curve} from './Curve.js';
 import {Details} from './Details.js';
 import {Strand} from './Strand.js';
+import Strands from './Strands.js';
 
 class App extends Component {
   constructor(props) {
@@ -44,7 +45,6 @@ class App extends Component {
           <div id="clear" onClick={this.undoAll}>CLEAR</div>
           <div id="undo" onClick={this.undoOne}>UNDO</div>
           <div id="edit" onClick={this.setModeToEdit} className={(this.state.mode === 'edit') ? 'selected' : ''}>EDIT</div>
-          <div id="line" onClick={this.setModeToLine} className={(this.state.mode === 'line') ? 'selected' : ''}>LINE</div>
           <div id="chain" onClick={this.setModeToChain} className={(this.state.mode === 'chain') ? 'selected' : ''}>CHAIN</div>
           <div id="spline" onClick={this.setModeToSpline} className={(this.state.mode === 'spline') ? 'selected' : ''}>SPLINE</div>
         </div>
@@ -54,51 +54,7 @@ class App extends Component {
         <div id="output-outer">
           <div className="output-cnt">
             <svg xmlns="http://www.w3.org/2000/svg" id="surface" width="100%" height="100%" preserveAspectRatio="none" onMouseDown={this.startClick} onMouseUp={this.endClick} onMouseMove={this.handleMove}>
-              {this.state.nodes.map((n,i,a) => {
-                var cls = '';
-                if (this.state.detailsIndex===i) {
-                  cls= 'selected';
-                 }
-                 else if(this.state.detailsIndex===-1 && this.state.mode === 'edit') {
-                   cls = 'editable';
-                 }
-                if(n){
-                  if(n.mode==='point') { 
-                    return <circle id={`el${i}`} cx={n.x} cy={n.y} r="5" fill="red" stroke="transparent" className={cls}/>
-                  }
-                  else if(n.mode==='line' 
-                    || (n.mode==='line-part' && !isNaN(n.x2) &&!isNaN(n.y2))) {
-                    if(n.mode==='line-part') {
-                      cls='selected';
-                    }
-                    return <line id={`el${i}`} x1={n.x1} y1={n.y1} x2={n.x2} y2={n.y2} stroke="black" strokeWidth="2"  className={cls} />
-                  }
-                  else if(n.mode==='chain' || n.mode==='spline') {
-                    var pts=n.points.slice() || [];
-                    return <Strand id={i} closed={n.closed===true} points={pts} sweep={n.sweep} mode={n.mode} class={cls} />
-                  }
-                }
-              })}
-              <g id="controls">
-              {
-                  this.state.nodes.filter((n,i,a) => n !== undefined && ['spline','chain'].includes(n.mode) && ( i === this.state.detailsIndex || (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y))))
-                    .map((n) => n.points.map((pt,pi) => {
-                        return <rect id={`ctl${pi}`} x={pt.x-1.75} y={pt.y-1.75} width={3.5} height={3.5} fill="white" stroke="orangered" strokeWidth="0.5" />
-                      }))
-                }
-                {
-                  this.state.nodes.filter((n,i,a) => n !== undefined && ['spline'].includes(n.mode) && n.points.length > 1 && (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)))
-                    .map((n) => 
-                        <polyline id="sweepline" points={Curve.chain(n.points.filter((n,i,a) => i >= a.length-2).concat([n.sweep]).map((v) => [v.x, v.y]), true)}  fill="none" stroke="orangered" strokeWidth="0.5" strokeDasharray="5, 5" />
-                      )
-                }
-                {
-                  this.state.nodes.filter((n,i,a) => n !== undefined && ['chain'].includes(n.mode) && n.points.length > 0 && (n.sweep && !isNaN(n.sweep.x) && !isNaN(n.sweep.y)))
-                    .map((n) => 
-                        <line id="sweepline" x1={n.points[n.points.length-1].x} y1={n.points[n.points.length-1].y} x2={n.sweep.x} y2={n.sweep.y} fill="none" stroke="orangered" strokeWidth="0.5" strokeDasharray="5, 5" />
-                      )
-                }
-              </g>
+              <Strands nodes={this.state.nodes} detailsIndex={this.state.detailsIndex} mode={this.state.mode} />
             </svg>
           </div>
         </div>
@@ -181,7 +137,6 @@ class App extends Component {
         if(node.mode==='chain' || node.mode==='spline') {
           let pts = node.points.map((pt) => ({x:pt.x+dx, y:pt.y+dy}));
           node.points = pts;
-          console.log(nodes);
           this.setState({'nodes':nodes});
         }
         this.setState({'moveFrom':{x:x,y:y}});
@@ -218,8 +173,6 @@ class App extends Component {
       let nodes = this.state.nodes.slice() || [];
       nodes.push({'mode':'line-part','x1':x,'y1':y});
       this.setState({'nodes':nodes});
-
-
     }
     else if(mode==='chain' || mode==='spline') {
       let nodes = this.state.nodes.slice() || [];
@@ -338,7 +291,7 @@ class App extends Component {
         const ptA = node.mode === 'chain' ? pts[0] : pts[1];
         const ptZ = node.mode === 'chain' ? pts[pts.length-1] : pts[pts.length-2];
         var diff = Curve.dist(ptA, ptZ);
-        const ctlw = 3.5;
+        const ctlw = 5;
         const closed = (diff <= ctlw);
         
         if (closed !== node.closed) {
@@ -354,12 +307,12 @@ class App extends Component {
     else if(mode === 'edit') {
       this.setState({'moveFrom':undefined});
     }
-    else if((mode === 'chain' || mode === 'spline') & this.state.nodes[this.state.nodes.length-1].points.length >= 3) {
+    else if((mode === 'chain' || mode === 'spline') && this.state.nodes[this.state.nodes.length-1].points.length >= 3) {
       const nodes = this.state.nodes.slice() || [];
       const node = nodes[nodes.length-1];
       const first = node.points[0];
       const second = node.points[1];
-      const ctlw = 3.5;
+      const ctlw = 5;
       const diff = mode === 'chain' ?
                     Curve.dist({x:x, y:y}, first) :
                     Curve.dist({x:x, y:y}, second);

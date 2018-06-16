@@ -1,16 +1,8 @@
 import React, {Component} from 'react';
 import {Curve} from './Curve.js';
 
-export class Strand extends Component {
-  constructor(props) {
-    super(props);
-    //this.state = props;
-    
-  }
+export default class Strand extends Component {
 
-  componentWillReceiveProps(props) {
-    //this.setState(props);
-  }
 
   render() {
     const {id,mode, sweep} = this.props;
@@ -53,3 +45,4 @@ export class Strand extends Component {
 
   }
 }
+

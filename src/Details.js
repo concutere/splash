@@ -28,7 +28,9 @@ export class Details extends Component {
           });
         }
         else {
-          details.push(<div><div className="detail-label">{n}</div><div className="detail">{node[n]}</div></div>);
+          const val = node[n] || '';
+          console.log(n,val);
+          details.push(<div><div className="detail-label">{n}</div><div className="detail">{val.toString()}</div></div>);
         }
       }
     }
