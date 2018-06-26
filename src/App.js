@@ -70,16 +70,12 @@ class App extends Component {
   setMode(mode) {
     let state = {'mode':mode};
     if (this.state.mode==='chain' || this.state.mode==='spline') {
-      let nodes = this.state.nodes.slice() || [];
-      let node = nodes.pop();
+      let nodes = this.state.nodes || [];
+      let node = Object.assign({}, nodes[nodes.length-1]);
       if (node && node.sweep) {
         node.sweep=undefined;
       }
-      nodes.push(node);
-      //if(this.state.mode==='chain') {
-        nodes.push({'mode':'unchained'});
-      //}
-      state['nodes']=nodes;
+      state['nodes']=[...nodes.slice(0, nodes.length-1), node, {'mode': 'unchained'}];
     }
     else if(this.state.mode==='edit' && mode !=='edit') {
       state['detailsIndex']=-1;
@@ -131,7 +127,7 @@ class App extends Component {
       }
     }
     else if(nodes.length > 0) {
-      let node = nodes.pop();
+      let node = Object.assign({}, nodes[nodes.length-1]);
       /*if(node && node.mode === 'line-part') {
         node.x2 = x;
         node.y2 = y;
@@ -141,8 +137,7 @@ class App extends Component {
       else if (node && (node.mode ==='chain' || node.mode=== 'spline') && node.points.length > 0) {
       */  
       node.sweep={'x':x,'y':y};
-      nodes.push(node);
-      this.setState({'nodes':nodes});
+      this.setState({'nodes':[...nodes.slice(0, nodes.length-1), node]});
       //}
     }
   }
@@ -240,8 +235,8 @@ class App extends Component {
   undoOne() {
     let nodes = this.state.nodes.slice() || [];
     if(nodes.length > 0) {
-      let removed = nodes.pop();
-      this.setState({'nodes':nodes});
+      let removed = nodes[nodes.length-1];
+      this.setState({'nodes':nodes.slice(0,nodes.length-1)});
     }
   }
 

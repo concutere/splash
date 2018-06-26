@@ -5,10 +5,13 @@ export default class StrandHandler {
     let node = nodes[id];
     
     if(node && node.points && node.points.length > 0) {
-      let pts = node.points.slice();
+      node = Object.assign({}, node);
+      let pts = node.points.map((pt) => Object.assign({}, pt));
       pts[ctlid] = {'x':x,'y':y};
       node.points = pts;
-      nodes[id] = node;
+      nodes = [...nodes.slice(0,id),
+                node,
+                ...nodes.slice(id+1)];
       
       return {'nodes':nodes};
     }
@@ -21,13 +24,15 @@ export default class StrandHandler {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
 
-    let node = nodes[id];
+    let node = Object.assign({},nodes[id]);
     //TODO centralize node.points transform options?
     if(node.mode==='chain' || node.mode==='spline') {
       let pts = node.points.map((pt) => ({x:pt.x+dx, y:pt.y+dy}));
       node.points = pts;
-      nodes[id] = node;
-      return {'nodes':nodes, 'moveFrom':{x:to.x, y:to.y}};
+      nodes = [...nodes.slice(0,id),
+        node,
+        ...nodes.slice(id+1)];
+return {'nodes':nodes, 'moveFrom':{x:to.x, y:to.y}};
     }
     else {
       return {'moveFrom':{x:to.x,y:to.y}};
@@ -35,18 +40,20 @@ export default class StrandHandler {
   }
 
   static addToChain(x, y, nodes, mode) {
-    var node;
+    var state;
 
     if(nodes.length > 0 && nodes[nodes.length-1].mode===mode) {
-      node = nodes.pop();
-      node.points.push({'x':x, 'y':y});
+      let node = Object.assign({},nodes[nodes.length-1]);
+      node.points = [...node.points.map((pt) => Object.assign({}, pt)), {'x':x, 'y':y}];
+      state = {'nodes': [...nodes.slice(0,nodes.length-1), node]};
     }
     else {
       //TODO refactor node object/constructor?
-      node = {'mode':mode,'points':[{'x':x, 'y':y}], 'closed':false};
+      let node = {'mode':mode,'points':[{'x':x, 'y':y}], 'closed':false};
+      state = {'nodes': [...nodes.map((n) => Object.assign({}, n)), node]}
     }
-    nodes.push(node);
-    return {'nodes':nodes};
+
+    return state;
   }
 
   static doubleClickEditControl(id, lastClicked, nodes, nodeid) {
@@ -56,11 +63,13 @@ export default class StrandHandler {
       clickedAt = undefined;
       let cid = parseInt(id.substr(3));
       
-      var nodes = nodes.slice();
-      var node = nodes[nodeid]
-      let pts = node.points.filter((_,i) => i !== cid);
+      //var nodes = nodes.slice();
+      var node = Object.assign({},nodes[nodeid]);
+      let pts = node.points.filter((_,i) => i !== cid).map((pt) => Object.assign({}, pt));
       node.points = pts;
-      nodes[nodeid] = node;
+      nodes = [...nodes.slice(0,nodeid), 
+                node,
+                ...nodes.slice(nodeid+1)];
 
       return ({'mode':'edit','ctlid':-1, 'lastClicked':clickedAt, 'nodes':nodes});
 
@@ -83,8 +92,11 @@ export default class StrandHandler {
       const closed = (diff <= ctlw);
       
       if (closed !== node.closed) {
+        node = Object.assign({}, node);
         node.closed = closed;
-        nodes[nodeid] = node;
+        nodes = [...nodes.slice(0,nodeid,),
+                  node,
+                  ...nodes.slice(nodeid+1)];
       }
     }
 
@@ -98,11 +110,11 @@ export default class StrandHandler {
     var moveFrom;
     if (lastClicked && clickedAt - lastClicked < dblClickOffset) {
       clickedAt = undefined;
-      var node = nodes[nodeid];
+      var node = Object.assign({}, nodes[nodeid]);
 
       if (node && node.points) {
         //todo optimize from checking full render pts for segment insertion point?
-        let ctls = node.points.slice();
+        let ctls = node.points.map((pt) => Object.assign({}, pt));
         let pts = Curve.chainPts(ctls.map((v) => [v.x,v.y])).map((v) => ({x:v[0], y:v[1]}));
         var closestPt = pts[pts.length-1];
         var ci = pts.length-1;
@@ -120,7 +132,9 @@ export default class StrandHandler {
         if(pi > 0 && pi < ctls.length) {
           ctls.splice(pi,0,{x:x, y:y});
           node.points = ctls;
-          nodes[id] = node;
+          nodes = [...nodes.slice(0, nodeid),
+                    node,
+                    ...nodes.slice(nodeid+1)];
           //this.setState({'nodes':nodes, 'lastClicked':undefined});
         }
       }
@@ -142,7 +156,7 @@ export default class StrandHandler {
 
   static endChain(x, y, mode, nodes, nodeid) {
     if(nodes[nodes.length-1].points.length >= 3) {
-      const node = nodes[nodes.length-1];
+      let node = nodes[nodes.length-1];
       const first = node.points[0];
       const second = node.points[1];
       const ctlw = 5;
@@ -151,6 +165,8 @@ export default class StrandHandler {
                     Curve.dist({x:x, y:y}, second);
       
       if (diff <= ctlw) {
+        node = Object.assign({}, node);
+        node.points = node.points.map((pt) => Object.assign({}, pt));
         node.closed = true;
         if(node.sweep) {
           node.sweep = undefined;
@@ -167,8 +183,9 @@ export default class StrandHandler {
           node.points[node.points.length-1] = B;
           node.points.push(C);
         }
-        nodes[nodes.length-1] = node;
-        nodes.push({'mode':'unchained'});
+        nodes = [...nodes.slice(0,nodes.length-1),
+                  node,
+                  {'mode':'unchained'}];
         
         return({'nodes':nodes, 'mode':'edit'});
       }
